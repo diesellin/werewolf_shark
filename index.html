@@ -3,36 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>狼人發牌器</title>
+    <title>狼人發牌器 - 修復顯示版</title>
     <style>
         :root { --bg: #121212; --panel: #1a1a2e; --accent: #e94560; --text: #ffffff; }
         body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         h1 { font-family: Impact; color: var(--accent); margin-bottom: 10px; }
         .container { width: 100%; max-width: 400px; }
-        .role-list { height: 300px; overflow-y: auto; border: 1px solid #333; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+        .role-list { height: 350px; overflow-y: auto; border: 1px solid #333; padding: 10px; border-radius: 8px; margin-bottom: 20px; background: #181818; }
         .role-item { display: flex; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 5px; }
-        .role-name { flex-grow: 1; font-weight: bold; }
-        .btn-help { background: #333; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; }
-        .btn-deal { width: 100%; background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.2rem; border-radius: 8px; cursor: pointer; }
+        .role-name { flex-grow: 1; font-weight: bold; padding-left: 10px; }
+        .btn-help { background: #444; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-weight: bold; }
+        .btn-deal { width: 100%; background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.2rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3); }
         
         /* 查詢面板 */
         #query-panel { display: none; text-align: center; width: 100%; }
-        #screen { background: #0f3460; color: #4ecca3; padding: 20px; font-size: 1.5rem; min-height: 100px; border-radius: 10px; border: 4px inset #16213e; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; white-space: pre-line; }
-        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .key { background: #222; color: white; border: none; padding: 20px; font-size: 1.2rem; border-radius: 8px; }
-        .key.ok { background: var(--accent); }
+        #screen { background: #0f3460; color: #4ecca3; padding: 20px; font-size: 1.4rem; min-height: 120px; border-radius: 10px; border: 4px inset #16213e; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; white-space: pre-line; line-height: 1.5; }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .key { background: #2a2a2a; color: white; border: none; padding: 20px; font-size: 1.3rem; border-radius: 8px; active { background: #444; } }
+        .key.ok { background: var(--accent); font-weight: bold; }
         .key.c { background: #444; }
 
         /* 介紹遮罩層 */
-        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--panel); z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; }
-        #overlay h2 { color: #ffcc00; }
-        #overlay p { font-size: 1.2rem; line-height: 1.6; }
-        .btn-back { background: #444; color: white; border: none; padding: 10px 40px; border-radius: 5px; margin-top: 30px; }
+        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--panel); z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 30px; box-sizing: border-box; }
+        #overlay h2 { color: #ffcc00; font-size: 2rem; margin-bottom: 20px; }
+        #overlay p { font-size: 1.3rem; line-height: 1.8; color: #ddd; }
+        .btn-back { background: #e94560; color: white; border: none; padding: 12px 50px; border-radius: 5px; margin-top: 40px; font-size: 1.1rem; }
     </style>
 </head>
 <body>
 
-    <h1>WEREWOLF DEALER</h1>
+    <h1 id="app-title">WEREWOLF DEALER</h1>
 
     <div id="setup-ui" class="container">
         <div class="role-list" id="role-list-ui"></div>
@@ -91,7 +91,6 @@
         let currentInput = "";
         let isShowing = false;
 
-        // 初始化列表
         const listUI = document.getElementById('role-list-ui');
         roleData.forEach((role, index) => {
             const div = document.createElement('div');
@@ -105,27 +104,33 @@
         });
 
         function showOverlay(title, text) {
+            document.getElementById('app-title').style.display = 'none';
             document.getElementById('overlay-title').innerText = "【 " + title + " 】";
             document.getElementById('overlay-text').innerText = text;
             document.getElementById('overlay').style.display = 'flex';
         }
 
-        function hideOverlay() { document.getElementById('overlay').style.display = 'none'; }
+        function hideOverlay() {
+            document.getElementById('app-title').style.display = 'block';
+            document.getElementById('overlay').style.display = 'none'; 
+        }
 
         function dealCards() {
             const selected = [];
             roleData.forEach((r, i) => { if(document.getElementById('role-'+i).checked) selected.push(r.name); });
             if(selected.length < 2) return alert("請至少選擇 2 個角色");
             
+            // 洗牌
             selected.sort(() => Math.random() - 0.5);
+            
             if(selected.includes("盜賊") && selected.length >= 3) {
                 extraCards = selected.slice(0, 2);
                 finalPool = selected.slice(2);
             } else {
                 finalPool = selected;
+                extraCards = [];
             }
             document.getElementById('setup-ui').style.display = 'none';
-            document.getElementById('deal-btn')?.remove();
             document.getElementById('query-panel').style.display = 'block';
         }
 
@@ -134,28 +139,41 @@
             if(key === 'C') currentInput = "";
             else if(key === 'OK') reveal();
             else if(currentInput.length < 2) currentInput += key;
-            document.getElementById('screen').innerText = currentInput ? "編號: " + currentInput : "ENTER ID";
+            
+            const screen = document.getElementById('screen');
+            screen.innerText = currentInput ? "請確認編號: " + currentInput : "請輸入編號";
+            screen.style.color = "#4ecca3";
         }
 
         function reveal() {
+            if(!currentInput) return;
             const idx = parseInt(currentInput);
+            const screen = document.getElementById('screen');
+            
             if(idx >= 1 && idx <= finalPool.length) {
-                let role = finalPool[idx-1];
-                let msg = `玩家 ${idx}\n身分: ${role}`;
-                if(role === "盜賊") msg += `\n備選: ${extraCards[0]}, ${extraCards[1]}`;
-                document.getElementById('screen').innerText = msg + "\n\n(按任意鍵隱藏)";
-                document.getElementById('screen').style.color = "#ffcc00";
+                let roleName = finalPool[idx-1]; // 這裡確保抓到職業名稱
+                let msg = `玩家 ${idx} 號\n身分：${roleName}`;
+                
+                if(roleName === "盜賊") {
+                    msg += `\n備選：${extraCards[0]}, ${extraCards[1]}`;
+                }
+                
+                screen.innerText = msg + "\n\n(按任意鍵隱藏身分)";
+                screen.style.color = "#ffcc00";
                 isShowing = true;
             } else {
-                document.getElementById('screen').innerText = "編號錯誤";
-                setTimeout(resetScreen, 1000);
+                screen.innerText = "查無此編號\n(目前人數: " + finalPool.length + ")";
+                screen.style.color = "#ff4d4d";
+                setTimeout(resetScreen, 1500);
             }
         }
 
         function resetScreen() {
-            currentInput = ""; isShowing = false;
-            document.getElementById('screen').innerText = "ENTER ID";
-            document.getElementById('screen').style.color = "#4ecca3";
+            currentInput = ""; 
+            isShowing = false;
+            const screen = document.getElementById('screen');
+            screen.innerText = "請輸入玩家編號";
+            screen.style.color = "#4ecca3";
         }
     </script>
 </body>
