@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>狼人發牌器 - 修復顯示版</title>
+    <title>狼人發牌器 - 全體顯示版</title>
     <style>
         :root { --bg: #121212; --panel: #1a1a2e; --accent: #e94560; --text: #ffffff; }
         body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
@@ -12,22 +12,21 @@
         .role-list { height: 350px; overflow-y: auto; border: 1px solid #333; padding: 10px; border-radius: 8px; margin-bottom: 20px; background: #181818; }
         .role-item { display: flex; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 5px; }
         .role-name { flex-grow: 1; font-weight: bold; padding-left: 10px; }
-        .btn-help { background: #444; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-weight: bold; }
+        .btn-help { background: #444; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
         .btn-deal { width: 100%; background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.2rem; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3); }
         
-        /* 查詢面板 */
+        /* 查詢面板 - 調整為可捲動以顯示多人職業 */
         #query-panel { display: none; text-align: center; width: 100%; }
-        #screen { background: #0f3460; color: #4ecca3; padding: 20px; font-size: 1.4rem; min-height: 120px; border-radius: 10px; border: 4px inset #16213e; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; white-space: pre-line; line-height: 1.5; }
+        #screen { background: #0f3460; color: #4ecca3; padding: 15px; font-size: 1.1rem; min-height: 200px; max-height: 400px; overflow-y: auto; border-radius: 10px; border: 4px inset #16213e; margin-bottom: 20px; text-align: left; white-space: pre-line; line-height: 1.6; }
         .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        .key { background: #2a2a2a; color: white; border: none; padding: 20px; font-size: 1.3rem; border-radius: 8px; active { background: #444; } }
-        .key.ok { background: var(--accent); font-weight: bold; }
-        .key.c { background: #444; }
+        .key { background: #2a2a2a; color: white; border: none; padding: 15px; font-size: 1.2rem; border-radius: 8px; }
+        .key.ok { background: var(--accent); font-weight: bold; grid-column: span 3; } /* OK鍵放大 */
 
         /* 介紹遮罩層 */
         #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--panel); z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 30px; box-sizing: border-box; }
         #overlay h2 { color: #ffcc00; font-size: 2rem; margin-bottom: 20px; }
         #overlay p { font-size: 1.3rem; line-height: 1.8; color: #ddd; }
-        .btn-back { background: #e94560; color: white; border: none; padding: 12px 50px; border-radius: 5px; margin-top: 40px; font-size: 1.1rem; }
+        .btn-back { background: #e94560; color: white; border: none; padding: 12px 50px; border-radius: 5px; margin-top: 40px; }
     </style>
 </head>
 <body>
@@ -40,20 +39,10 @@
     </div>
 
     <div id="query-panel" class="container">
-        <div id="screen">READY</div>
+        <div id="screen">發牌完成！<br>按下方按鈕顯示所有人職業</div>
         <div class="keypad">
-            <button class="key" onclick="press('1')">1</button>
-            <button class="key" onclick="press('2')">2</button>
-            <button class="key" onclick="press('3')">3</button>
-            <button class="key" onclick="press('4')">4</button>
-            <button class="key" onclick="press('5')">5</button>
-            <button class="key" onclick="press('6')">6</button>
-            <button class="key" onclick="press('7')">7</button>
-            <button class="key" onclick="press('8')">8</button>
-            <button class="key" onclick="press('9')">9</button>
-            <button class="key c" onclick="press('C')">C</button>
-            <button class="key" onclick="press('0')">0</button>
-            <button class="key ok" onclick="press('OK')">OK</button>
+            <button class="key ok" onclick="revealAll()">點擊顯示所有身分</button>
+            <button class="key" style="grid-column: span 3; background:#444;" onclick="location.reload()">重新開始</button>
         </div>
     </div>
 
@@ -88,9 +77,8 @@
 
         let finalPool = [];
         let extraCards = [];
-        let currentInput = "";
-        let isShowing = false;
 
+        // 初始化選擇介面 (Select處)
         const listUI = document.getElementById('role-list-ui');
         roleData.forEach((role, index) => {
             const div = document.createElement('div');
@@ -104,25 +92,22 @@
         });
 
         function showOverlay(title, text) {
-            document.getElementById('app-title').style.display = 'none';
             document.getElementById('overlay-title').innerText = "【 " + title + " 】";
             document.getElementById('overlay-text').innerText = text;
             document.getElementById('overlay').style.display = 'flex';
         }
 
-        function hideOverlay() {
-            document.getElementById('app-title').style.display = 'block';
-            document.getElementById('overlay').style.display = 'none'; 
-        }
+        function hideOverlay() { document.getElementById('overlay').style.display = 'none'; }
 
         function dealCards() {
             const selected = [];
             roleData.forEach((r, i) => { if(document.getElementById('role-'+i).checked) selected.push(r.name); });
             if(selected.length < 2) return alert("請至少選擇 2 個角色");
             
-            // 洗牌
+            // 隨機洗牌
             selected.sort(() => Math.random() - 0.5);
             
+            // 處理盜賊邏輯 (Select確認：若選盜賊則留2張)
             if(selected.includes("盜賊") && selected.length >= 3) {
                 extraCards = selected.slice(0, 2);
                 finalPool = selected.slice(2);
@@ -130,50 +115,27 @@
                 finalPool = selected;
                 extraCards = [];
             }
+            
             document.getElementById('setup-ui').style.display = 'none';
             document.getElementById('query-panel').style.display = 'block';
         }
 
-        function press(key) {
-            if(isShowing) { resetScreen(); return; }
-            if(key === 'C') currentInput = "";
-            else if(key === 'OK') reveal();
-            else if(currentInput.length < 2) currentInput += key;
+        // 修改後：直接顯示全體名單
+        function revealAll() {
+            let resultText = "【 所有玩家身分清單 】\n\n";
             
-            const screen = document.getElementById('screen');
-            screen.innerText = currentInput ? "請確認編號: " + currentInput : "請輸入編號";
-            screen.style.color = "#4ecca3";
-        }
+            finalPool.forEach((role, index) => {
+                resultText += `${index + 1} 號玩家：${role}\n`;
+            });
 
-        function reveal() {
-            if(!currentInput) return;
-            const idx = parseInt(currentInput);
-            const screen = document.getElementById('screen');
-            
-            if(idx >= 1 && idx <= finalPool.length) {
-                let roleName = finalPool[idx-1]; // 這裡確保抓到職業名稱
-                let msg = `玩家 ${idx} 號\n身分：${roleName}`;
-                
-                if(roleName === "盜賊") {
-                    msg += `\n備選：${extraCards[0]}, ${extraCards[1]}`;
-                }
-                
-                screen.innerText = msg + "\n\n(按任意鍵隱藏身分)";
-                screen.style.color = "#ffcc00";
-                isShowing = true;
-            } else {
-                screen.innerText = "查無此編號\n(目前人數: " + finalPool.length + ")";
-                screen.style.color = "#ff4d4d";
-                setTimeout(resetScreen, 1500);
+            if (extraCards.length > 0) {
+                resultText += `\n--- 盜賊備選牌 ---\n`;
+                resultText += `1. ${extraCards[0]}\n2. ${extraCards[1]}\n`;
             }
-        }
 
-        function resetScreen() {
-            currentInput = ""; 
-            isShowing = false;
             const screen = document.getElementById('screen');
-            screen.innerText = "請輸入玩家編號";
-            screen.style.color = "#4ecca3";
+            screen.innerText = resultText;
+            screen.style.color = "#ffcc00";
         }
     </script>
 </body>
