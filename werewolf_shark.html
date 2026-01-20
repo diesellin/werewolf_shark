@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>狼人發牌器</title>
+    <style>
+        :root { --bg: #121212; --panel: #1a1a2e; --accent: #e94560; --text: #ffffff; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { font-family: Impact; color: var(--accent); margin-bottom: 10px; }
+        .container { width: 100%; max-width: 400px; }
+        .role-list { height: 300px; overflow-y: auto; border: 1px solid #333; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+        .role-item { display: flex; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 5px; }
+        .role-name { flex-grow: 1; font-weight: bold; }
+        .btn-help { background: #333; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; }
+        .btn-deal { width: 100%; background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.2rem; border-radius: 8px; cursor: pointer; }
+        
+        /* 查詢面板 */
+        #query-panel { display: none; text-align: center; width: 100%; }
+        #screen { background: #0f3460; color: #4ecca3; padding: 20px; font-size: 1.5rem; min-height: 100px; border-radius: 10px; border: 4px inset #16213e; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; white-space: pre-line; }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .key { background: #222; color: white; border: none; padding: 20px; font-size: 1.2rem; border-radius: 8px; }
+        .key.ok { background: var(--accent); }
+        .key.c { background: #444; }
+
+        /* 介紹遮罩層 */
+        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--panel); z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; }
+        #overlay h2 { color: #ffcc00; }
+        #overlay p { font-size: 1.2rem; line-height: 1.6; }
+        .btn-back { background: #444; color: white; border: none; padding: 10px 40px; border-radius: 5px; margin-top: 30px; }
+    </style>
+</head>
+<body>
+
+    <h1>WEREWOLF DEALER</h1>
+
+    <div id="setup-ui" class="container">
+        <div class="role-list" id="role-list-ui"></div>
+        <button class="btn-deal" onclick="dealCards()">確認角色並開始發牌</button>
+    </div>
+
+    <div id="query-panel" class="container">
+        <div id="screen">READY</div>
+        <div class="keypad">
+            <button class="key" onclick="press('1')">1</button>
+            <button class="key" onclick="press('2')">2</button>
+            <button class="key" onclick="press('3')">3</button>
+            <button class="key" onclick="press('4')">4</button>
+            <button class="key" onclick="press('5')">5</button>
+            <button class="key" onclick="press('6')">6</button>
+            <button class="key" onclick="press('7')">7</button>
+            <button class="key" onclick="press('8')">8</button>
+            <button class="key" onclick="press('9')">9</button>
+            <button class="key c" onclick="press('C')">C</button>
+            <button class="key" onclick="press('0')">0</button>
+            <button class="key ok" onclick="press('OK')">OK</button>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <h2 id="overlay-title"></h2>
+        <p id="overlay-text"></p>
+        <button class="btn-back" onclick="hideOverlay()">返回鍵</button>
+    </div>
+
+    <script>
+        const roleData = [
+            {name: "狼人", group: "狼人", info: "狼人陣營：每晚可與隊友商量殺害一名玩家。"},
+            {name: "狼人", group: "狼人", info: "狼人陣營：每晚可與隊友商量殺害一名玩家。"},
+            {name: "狼人", group: "狼人", info: "狼人陣營：每晚可與隊友商量殺害一名玩家。"},
+            {name: "狼人", group: "狼人", info: "狼人陣營：每晚可與隊友商量殺害一名玩家。"},
+            {name: "狼王", group: "狼人", info: "狼王：出局後可開槍帶走一名玩家（被毒除外）。"},
+            {name: "白狼王", group: "狼人", info: "白狼王：白天自爆可帶走一名玩家並直接進入黑夜。"},
+            {name: "惡靈騎士", group: "狼人", info: "惡靈騎士：無法被毒殺，被查驗時會反傷對方。"},
+            {name: "狼美人", group: "狼人", info: "狼美人：每晚魅惑一名玩家，若狼美人出局，被魅惑者隨之殉情。"},
+            {name: "盜賊", group: "特殊", info: "盜賊：從剩餘的兩張牌中選擇一張。"},
+            {name: "預言家", group: "神職", info: "預言家：每晚可以查驗一名玩家的陣營。"},
+            {name: "女巫", group: "神職", info: "女巫：擁有一瓶解藥與一瓶毒藥。"},
+            {name: "守衛", group: "神職", info: "守衛：每晚可守護一人，不能連續兩晚守護同一人。"},
+            {name: "攝夢人", group: "神職", info: "攝夢人：每晚攝入一人的夢境，守護該玩家或連續使其死亡。"},
+            {name: "獵人", group: "神職", info: "獵人：出局後可開槍（被毒除外）。"},
+            {name: "白癡", group: "神職", info: "白癡：被投票出局時可翻牌赦免，但失去投票權。"},
+            {name: "村民", group: "平民", info: "村民：沒有特殊技能。"},
+            {name: "村民", group: "平民", info: "村民：沒有特殊技能。"},
+            {name: "村民", group: "平民", info: "村民：沒有特殊技能。"},
+            {name: "村民", group: "平民", info: "村民：沒有特殊技能。"}
+        ];
+
+        let finalPool = [];
+        let extraCards = [];
+        let currentInput = "";
+        let isShowing = false;
+
+        // 初始化列表
+        const listUI = document.getElementById('role-list-ui');
+        roleData.forEach((role, index) => {
+            const div = document.createElement('div');
+            div.className = 'role-item';
+            div.innerHTML = `
+                <input type="checkbox" id="role-${index}" value="${index}">
+                <label class="role-name" for="role-${index}" style="color:${role.group==='狼人'?'#ff4d4d':role.group==='神職'?'#ba68c8':'#fff'}">${role.name}</label>
+                <button class="btn-help" onclick="showOverlay('${role.name}', '${role.info}')">?</button>
+            `;
+            listUI.appendChild(div);
+        });
+
+        function showOverlay(title, text) {
+            document.getElementById('overlay-title').innerText = "【 " + title + " 】";
+            document.getElementById('overlay-text').innerText = text;
+            document.getElementById('overlay').style.display = 'flex';
+        }
+
+        function hideOverlay() { document.getElementById('overlay').style.display = 'none'; }
+
+        function dealCards() {
+            const selected = [];
+            roleData.forEach((r, i) => { if(document.getElementById('role-'+i).checked) selected.push(r.name); });
+            if(selected.length < 2) return alert("請至少選擇 2 個角色");
+            
+            selected.sort(() => Math.random() - 0.5);
+            if(selected.includes("盜賊") && selected.length >= 3) {
+                extraCards = selected.slice(0, 2);
+                finalPool = selected.slice(2);
+            } else {
+                finalPool = selected;
+            }
+            document.getElementById('setup-ui').style.display = 'none';
+            document.getElementById('deal-btn')?.remove();
+            document.getElementById('query-panel').style.display = 'block';
+        }
+
+        function press(key) {
+            if(isShowing) { resetScreen(); return; }
+            if(key === 'C') currentInput = "";
+            else if(key === 'OK') reveal();
+            else if(currentInput.length < 2) currentInput += key;
+            document.getElementById('screen').innerText = currentInput ? "編號: " + currentInput : "ENTER ID";
+        }
+
+        function reveal() {
+            const idx = parseInt(currentInput);
+            if(idx >= 1 && idx <= finalPool.length) {
+                let role = finalPool[idx-1];
+                let msg = `玩家 ${idx}\n身分: ${role}`;
+                if(role === "盜賊") msg += `\n備選: ${extraCards[0]}, ${extraCards[1]}`;
+                document.getElementById('screen').innerText = msg + "\n\n(按任意鍵隱藏)";
+                document.getElementById('screen').style.color = "#ffcc00";
+                isShowing = true;
+            } else {
+                document.getElementById('screen').innerText = "編號錯誤";
+                setTimeout(resetScreen, 1000);
+            }
+        }
+
+        function resetScreen() {
+            currentInput = ""; isShowing = false;
+            document.getElementById('screen').innerText = "ENTER ID";
+            document.getElementById('screen').style.color = "#4ecca3";
+        }
+    </script>
+</body>
+</html>
